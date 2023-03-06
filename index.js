@@ -22,7 +22,17 @@ async function consumeAPI(signal) {
 function apppendToHTML(element) {
     return new WritableStream({
         write({ title, description, url_anime }) {
-            element.innerHTML += title + "<br>"
+
+            const card = `
+                  <article>
+                    <div class="text">
+                      <h3>${title}</h3>
+                      <p>${description}</p>
+                      <a href=${url_anime}>Here's why</a>
+                    </div>
+                  </article>
+            `
+            element.innerHTML += card
         }
     })
 }
@@ -33,7 +43,7 @@ function parseNDJSON() {
         transform(chunk, controller) {
             ndjsonBuffer += chunk
             const items = ndjsonBuffer.split('\n')
-            items.slice(0, 11)
+            items.slice(0, 1)
                 .forEach(item => controller.enqueue(JSON.parse(item)))
 
             ndjsonBuffer = items[items.length - 1]
