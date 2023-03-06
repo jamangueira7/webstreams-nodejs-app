@@ -25,6 +25,8 @@ Front-end para consumir uma API enviando dados sob demanda.
 ![img_1.png](.github%2Fimg_1.png)
 ![img.png](.github%2Fimg.png)
 
+Projeto original [ErickWendel](https://github.com/ErickWendel/webstreams-nodejs-and-browser-tutorial)
+
 Backend [Aqui](https://github.com/jamangueira7/webstreams-nodejs-server)
 
 Baseado na aula do canal [Erick Wendel](https://www.youtube.com/watch?v=-IpRYbL4yMk&t=19s)
