@@ -1,57 +1,57 @@
-import { createServer } from 'node:http'
-import { createReadStream } from 'node:fs'
-import { setTimeout } from 'node:timers/promises'
-import { Transform, Readable } from 'node:stream'
-import { TransformStream, WritableStream } from 'node:stream/web'
-import csvtojson from 'csvtojson'
+const API_URL = 'http://localhost:3000'
 
-const PORT = 3000
-createServer(async (request, response) => {
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': '*',
-    }
+async function consumeAPI(signal) {
+    const response = await fetch(API_URL, {
+        signal
+    })
 
-    if(response.method === 'OPTIONS') {
-        response.writeHead(204, headers)
-        response.end()
-        return
-    }
+    let counter = 0
 
-    let items = 0
-    request.once('close', _ => console.log(`connection was closed!`, items))
-
-    Readable.toWeb(createReadStream('./animeflv.csv'))
-        //o passo a passo que cada item individual vai trafegar
-        .pipeThrough(Transform.toWeb(csvtojson()))
-        .pipeThrough(new TransformStream({
-            transform(chunk, controller) {
-                const data = JSON.parse(Buffer.from(chunk))
-
-                const mappedData = {
-                    title: data.title,
-                    description: data.description,
-                    url_anime: data.url_anime,
-                }
-
-                //quebra de linha pois é um NDJSON
-                controller.enqueue(JSON.stringify(mappedData).concat('\n'))
+    const reader = response.body
+        .pipeThrough( new TextDecoderStream())
+        .pipeThrough(parseNDJSON())
+        /*.pipeTo(new WritableStream({
+            write(chunk) {
+                console.log(++counter, 'chunk', chunk)
             }
-        }))
-        //pipeTo é a ultima etapa
-        .pipeTo(new WritableStream({
-            async write(chunk) {
-                await setTimeout(1000)
-                items ++
-                response.write(chunk)
-            },
-            close() {
-                response.end()
-            }
-        }))
+        }))*/
 
+    return reader
+}
 
-    response.writeHead(200, headers)
-})
-.listen(PORT)
-.on('listening', _ => console.log(`server is running at ${PORT}`))
+function apppendToHTML(element) {
+    return new WritableStream({
+        write({ title, description, url_anime }) {
+            element.innerHTML += title + "<br>"
+        }
+    })
+}
+
+function parseNDJSON() {
+    let ndjsonBuffer = ""
+    return new TransformStream({
+        transform(chunk, controller) {
+            ndjsonBuffer += chunk
+            const items = ndjsonBuffer.split('\n')
+            items.slice(0, 11)
+                .forEach(item => controller.enqueue(JSON.parse(item)))
+
+            ndjsonBuffer = items[items.length - 1]
+        },
+        flush(controller) {
+            if(!ndjsonBuffer) return
+
+            controller.enqueue(JSON.parse(ndjsonBuffer))
+        }
+    })
+}
+
+const [
+    start,
+    stop,
+    cards
+] = ['start', 'stop', 'cards'].map(item => document.getElementById(item))
+
+const abortController = new AbortController()
+const readable = await consumeAPI(abortController.signal)
+readable.pipeTo(apppendToHTML(cards))
